@@ -1,4 +1,4 @@
-// server.js
+// server_game_api.js (pour ton service Render d'API de jeu, ex: https://ton-backend-jeu.onrender.com)
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -14,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 // --- BASE DE DONNÉES EN MÉMOIRE (ATTENTION: données non persistantes !) ---
+// Cela simule une base de données. En production, utilise une vraie base de données.
 const usersData = {
   "user123": {
     userId: "user123",
@@ -35,42 +36,20 @@ const usersData = {
   }
 };
 
-// --- ENDPOINTS EXISTANTS ET MODIFIÉS ---
+// --- ENDPOINTS POUR LES BLOCS TURBOWARP (API DE JEU) ---
 
-// MODIFICATION ICI : L'URL racine renvoie maintenant le JSON de version (comme demandé implicitement)
-app.get("/", (req, res) => {
-  console.log("--> Requête GET sur / (racine)"); // LOG
-  res.json({
-    version: process.env.VERSION || "inconnu",
-    url: process.env.PROJECT_URL || null,
-    message: "Bienvenue sur le serveur Render de Dino !" // Message supplémentaire si tu veux
-  });
-});
-
-// Endpoint principal : version + lien (maintenu pour compatibilité si besoin)
-app.get("/version.json", (req, res) => {
-  console.log("--> Requête GET sur /version.json"); // LOG
-  res.json({
-    version: process.env.VERSION || "inconnu",
-    url: process.env.PROJECT_URL || null
-  });
-});
-
-
-// --- NOUVEAUX ENDPOINTS POUR LES BLOCS TURBOWARP ---
-
-// 1. GET /api/leaderboard
+// Endpoint pour le classement
 app.get("/api/leaderboard", (req, res) => {
-  console.log("--> Requête GET sur /api/leaderboard"); // LOG
+  console.log("--> Requête GET sur /api/leaderboard");
   const leaderboard = Object.values(usersData)
     .sort((a, b) => (b.scoreFields.mainScore || 0) - (a.scoreFields.mainScore || 0));
   res.json(leaderboard);
 });
 
-// 2. GET /api/users/:userId
+// Endpoint pour vérifier l'existence d'un utilisateur et récupérer ses infos
 app.get("/api/users/:userId", (req, res) => {
   const { userId } = req.params;
-  console.log(`--> Requête GET sur /api/users/${userId}`); // LOG
+  console.log(`--> Requête GET sur /api/users/${userId}`);
   if (usersData[userId]) {
     res.status(200).json(usersData[userId]);
   } else {
@@ -78,41 +57,34 @@ app.get("/api/users/:userId", (req, res) => {
   }
 });
 
-// 3. POST /api/users
+// Endpoint pour ajouter un nouvel utilisateur
 app.post("/api/users", (req, res) => {
   const { userId, username } = req.body;
-  console.log(`--> Requête POST sur /api/users avec ID: ${userId}, Pseudo: ${username}`); // LOG pour l'arrivée de la requête
+  console.log(`--> Requête POST sur /api/users avec ID: ${userId}, Pseudo: ${username}`);
 
   if (!userId || !username) {
-    console.warn(`[API /users] Erreur 400: ID ou pseudo manquant. Body: ${JSON.stringify(req.body)}`); // LOG d'erreur
+    console.warn(`[API /users] Erreur 400: ID ou pseudo manquant. Body: ${JSON.stringify(req.body)}`);
     return res.status(400).send("ID utilisateur et pseudo sont requis.");
   }
   if (usersData[userId]) {
-    console.warn(`[API /users] Erreur 409: Utilisateur ${userId} existe déjà.`); // LOG d'erreur
+    console.warn(`[API /users] Erreur 409: Utilisateur ${userId} existe déjà.`);
     return res.status(409).send("Un utilisateur avec cet ID existe déjà.");
   }
 
   usersData[userId] = {
     userId: userId,
     username: username,
-    profile: {
-      bio: "",
-      avatarUrl: "",
-      customStatus: ""
-    },
-    scoreFields: {
-      mainScore: 0,
-      level: 0
-    }
+    profile: { bio: "", avatarUrl: "", customStatus: "" },
+    scoreFields: { mainScore: 0, level: 0 }
   };
-  console.log(`[API /users] Utilisateur '${username}' (ID: ${userId}) créé avec succès.`); // LOG de succès
+  console.log(`[API /users] Utilisateur '${username}' (ID: ${userId}) créé avec succès.`);
   res.status(201).json({ message: `Utilisateur '${username}' (ID: ${userId}) ajouté avec succès.`, user: usersData[userId] });
 });
 
-// 4. GET /api/users/:userId/scores
+// Endpoint pour récupérer toutes les données de score d'un utilisateur
 app.get("/api/users/:userId/scores", (req, res) => {
   const { userId } = req.params;
-  console.log(`--> Requête GET sur /api/users/${userId}/scores`); // LOG
+  console.log(`--> Requête GET sur /api/users/${userId}/scores`);
   if (usersData[userId] && usersData[userId].scoreFields) {
     res.status(200).json(usersData[userId].scoreFields);
   } else if (usersData[userId]) {
@@ -122,10 +94,10 @@ app.get("/api/users/:userId/scores", (req, res) => {
   }
 });
 
-// 5. GET /api/users/:userId/scores/:fieldName
+// Endpoint pour récupérer la valeur d'un champ de score spécifique
 app.get("/api/users/:userId/scores/:fieldName", (req, res) => {
   const { userId, fieldName } = req.params;
-  console.log(`--> Requête GET sur /api/users/${userId}/scores/${fieldName}`); // LOG
+  console.log(`--> Requête GET sur /api/users/${userId}/scores/${fieldName}`);
   if (usersData[userId] && usersData[userId].scoreFields && usersData[userId].scoreFields.hasOwnProperty(fieldName)) {
     res.status(200).json(usersData[userId].scoreFields[fieldName]);
   } else {
@@ -133,11 +105,11 @@ app.get("/api/users/:userId/scores/:fieldName", (req, res) => {
   }
 });
 
-// 6. POST /api/users/:userId/scores
+// Endpoint pour créer ou mettre à jour un champ de score
 app.post("/api/users/:userId/scores", (req, res) => {
   const { userId } = req.params;
   const { field, value } = req.body;
-  console.log(`--> Requête POST sur /api/users/${userId}/scores pour ${field}: ${value}`); // LOG
+  console.log(`--> Requête POST sur /api/users/${userId}/scores pour ${field}: ${value}`);
 
   if (!usersData[userId]) {
     return res.status(404).send("Utilisateur non trouvé.");
@@ -153,11 +125,11 @@ app.post("/api/users/:userId/scores", (req, res) => {
   res.status(200).send(`Donnée de score '${field}' de l'utilisateur '${userId}' mise à jour à '${value}'.`);
 });
 
-// 7. POST /api/users/:userId/rename-score-field
+// Endpoint pour renommer un champ de score
 app.post("/api/users/:userId/rename-score-field", (req, res) => {
   const { userId } = req.params;
   const { oldField, newField } = req.body;
-  console.log(`--> Requête POST sur /api/users/${userId}/rename-score-field pour ${oldField} -> ${newField}`); // LOG
+  console.log(`--> Requête POST sur /api/users/${userId}/rename-score-field pour ${oldField} -> ${newField}`);
 
   if (!usersData[userId]) {
     return res.status(404).send("Utilisateur non trouvé.");
@@ -174,8 +146,7 @@ app.post("/api/users/:userId/rename-score-field", (req, res) => {
   res.status(200).send(`Champ de score '${oldField}' de l'utilisateur '${userId}' renommé en '${newField}'.`);
 });
 
-
 // Lancer le serveur
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`🚀 Serveur API de jeu démarré sur http://localhost:${PORT}`);
 });
