@@ -1,4 +1,4 @@
-// server_game_api.js (pour ton service Render d'API de jeu, ex: https://ton-backend-jeu.onrender.com)
+// server donnée_game_api.js (pour ton service Render d'API de jeu, ex: https://ton-backend-jeu.onrender.com)
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
